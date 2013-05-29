@@ -10,7 +10,10 @@ import android.database.sqlite.SQLiteOpenHelper;
 public class Gw2DB extends SQLiteOpenHelper {
 
     public static final String WORLD_NAMES_TABLE = "world_names";
-    private static final String DATABASE_CREATE = "create table "+WORLD_NAMES_TABLE+" (_id integer, name text not null);";
+    public static final String MAP_NAMES_TABLE = "map_names";
+
+    private static final String CREATE_WORLD_TABLE = "create table "+WORLD_NAMES_TABLE+" (_id integer, name text not null);";
+    private static final String CREATE_MAP_TABLE = "create table "+MAP_NAMES_TABLE+" (_id integer, name text not null);";
 
     private final static String DATABASE_NAME = "world_names.db";
     private final static int DATABASE_VERSION = 1;
@@ -21,7 +24,8 @@ public class Gw2DB extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase sqLiteDatabase) {
-        sqLiteDatabase.execSQL(DATABASE_CREATE);
+        sqLiteDatabase.execSQL(CREATE_WORLD_TABLE);
+        sqLiteDatabase.execSQL(CREATE_MAP_TABLE);
     }
 
     @Override

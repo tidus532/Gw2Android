@@ -12,6 +12,7 @@ import java.net.URL;
 public class Gw2ApiBase {
     protected final static String event_world_names_url = "https://api.guildwars2.com/v1/world_names.json";
     protected final static String event_url = "https://api.guildwars2.com/v1/events.json";
+    protected final static String event_map_names_url = "https://api.guildwars2.com/v1/map_names.json";
 
     public Gw2ApiBase() {
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
@@ -40,6 +41,7 @@ public class Gw2ApiBase {
         String line = null;
 
         try {
+            assert reader != null;
             while ((line = reader.readLine()) != null) {
                 sb.append(line + "\n");
             }
