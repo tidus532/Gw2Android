@@ -23,9 +23,6 @@ public class Gw2ApiEvents extends Gw2ApiBase {
     public final static String LANG_DE = "de";
     public final static String LANG_ES = "es";
 
-    private static HashMap<Integer, String> cache_worldNames;
-    private static HashMap<Integer, String> cache_mapNames;
-
     private Gw2DB dbhelper;
     private SQLiteDatabase db;
 
@@ -35,8 +32,6 @@ public class Gw2ApiEvents extends Gw2ApiBase {
     public Gw2ApiEvents(Context context) {
         super();
         this.dbhelper = new Gw2DB(context);
-        cache_worldNames = new HashMap<Integer, String>();
-        cache_mapNames = new HashMap<Integer, String>();
     }
 
     /**
@@ -47,14 +42,6 @@ public class Gw2ApiEvents extends Gw2ApiBase {
      */
     public Gw2ApiEvents(Context context, String lang) {
 
-    }
-
-    /**
-     * Invalidates all local cache.
-     */
-    public static void invalidateCache() {
-        cache_worldNames.clear();
-        cache_mapNames.clear();
     }
 
     private boolean _hasWorldNamesInDB() {
@@ -73,25 +60,26 @@ public class Gw2ApiEvents extends Gw2ApiBase {
         return false;
     }
 
-    private void _getWorldNamesFromDB() {
+    private HashMap<Integer, String> _getWorldNamesFromDB() {
         Log.d("Gw2", "Fetching world names from DB.");
         Cursor cursor = db.query(Gw2DB.WORLD_NAMES_TABLE, null, null, null, null, null, null);
         cursor.moveToFirst();
-        cache_worldNames.clear();
+        HashMap<Integer, String> worldNames = new HashMap<Integer, String>();
         while (!cursor.isLast()) {
             Integer id = cursor.getInt(0);
             String name = cursor.getString(1);
-            cache_worldNames.put(id, name);
+            worldNames.put(id, name);
             cursor.moveToNext();
         }
         cursor.close();
+        return worldNames;
     }
 
-    private void _getWorldNamesFromJSON() {
+    private HashMap<Integer, String> _getWorldNamesFromJSON() {
         Log.d("Gw2", "Fetching world names via JSON.");
         String result = this.fetchJSONfromURL(event_world_names_url);
         db = this.dbhelper.getWritableDatabase();
-        cache_worldNames.clear();
+        HashMap<Integer, String> worldNames = new HashMap<Integer, String>();
         JSONArray jsData;
 
         try {
@@ -110,23 +98,12 @@ public class Gw2ApiEvents extends Gw2ApiBase {
                     db.insert(Gw2DB.WORLD_NAMES_TABLE, null, row);
                 }
 
-                cache_worldNames.put(id, name);
+                worldNames.put(id, name);
             }
         } catch (JSONException e) {
             e.printStackTrace();
         }
-
-    }
-
-    private void _buildWorldCache() {
-        if (this._hasWorldNamesInDB()) {
-            this._getWorldNamesFromDB();
-        } else {
-            this._getWorldNamesFromJSON();
-        }
-        if(cache_worldNames == null){
-            Log.e("Gw2", "world names cache is still null after building the cache. Expect staring at an exception very soon.");
-        }
+        return worldNames;
     }
 
     /**
@@ -134,19 +111,19 @@ public class Gw2ApiEvents extends Gw2ApiBase {
      * his method keeps a cache in memory and is backed by a database.
      */
     public HashMap<Integer, String> getWorldNames() {
-        if (cache_worldNames.isEmpty()) {
-            this._buildWorldCache();
+        if (this._hasWorldNamesInDB()) {
+            return this._getWorldNamesFromDB();
         } else {
-            Log.d("Gw2", "Fetching world names from local cache.");
+            return this._getWorldNamesFromJSON();
         }
-        return cache_worldNames;
     }
 
     public String getWorldName(int world_id) {
-        if (cache_worldNames == null) {
-            this._buildWorldCache();
+        if (this._hasWorldNamesInDB()) {
+            return this._getWorldNamesFromDB().get(world_id);
+        } else {
+            return this._getWorldNamesFromJSON().get(world_id);
         }
-        return cache_worldNames.get(world_id);
     }
 
     private boolean _hasMapNamesInDB() {
@@ -165,21 +142,27 @@ public class Gw2ApiEvents extends Gw2ApiBase {
         return false;
     }
 
-    private void _getMapNamesFromDB() {
+    private HashMap<Integer, String> _getMapNamesFromDB() {
+        Log.d("Gw2", "Fetching map names from DB.");
         Cursor cursor = db.query(Gw2DB.MAP_NAMES_TABLE, null, null, null, null, null, null);
         cursor.moveToFirst();
+        HashMap<Integer, String> mapNames = new HashMap<Integer, String>();
+
         while (!cursor.isLast()) {
             Integer id = cursor.getInt(0);
             String name = cursor.getString(1);
-            cache_mapNames.put(id, name);
+            mapNames.put(id, name);
             cursor.moveToNext();
         }
         cursor.close();
+        return mapNames;
     }
 
-    private void _getMapNamesFromJSON() {
+    private HashMap<Integer, String> _getMapNamesFromJSON() {
+        Log.d("Gw2", "Fetching map names from JSON.");
         String result = this.fetchJSONfromURL(event_map_names_url);
         db = this.dbhelper.getWritableDatabase();
+        HashMap<Integer, String> mapNames = new HashMap<Integer, String>();
         JSONArray jsData;
 
         try {
@@ -198,11 +181,12 @@ public class Gw2ApiEvents extends Gw2ApiBase {
                     db.insert(Gw2DB.MAP_NAMES_TABLE, null, row);
                 }
 
-                cache_worldNames.put(id, name);
+                mapNames.put(id, name);
             }
         } catch (JSONException e) {
             e.printStackTrace();
         }
+        return mapNames;
     }
 
     /**
@@ -211,30 +195,28 @@ public class Gw2ApiEvents extends Gw2ApiBase {
      * @return
      */
     public HashMap<Integer, String> getMapNames() {
-        if (cache_mapNames == null) {
-            if(this._hasMapNamesInDB()){
-                this._getMapNamesFromDB();
-            } else {
-                this._getMapNamesFromJSON();
-            }
+
+        if (this._hasMapNamesInDB()) {
+            return this._getMapNamesFromDB();
+        } else {
+            return this._getMapNamesFromJSON();
         }
-        return cache_mapNames;
+
     }
 
     /**
      * Returns the map name given a map id.
+     *
      * @param map_id
      * @return
      */
-    public String getMapName(int map_id){
-        if (cache_mapNames == null) {
-            if(this._hasMapNamesInDB()){
-                this._getMapNamesFromDB();
-            } else {
-                this._getMapNamesFromJSON();
-            }
+
+    public String getMapName(int map_id) {
+        if (this._hasMapNamesInDB()) {
+            return this._getMapNamesFromDB().get(map_id);
+        } else {
+            return this._getMapNamesFromJSON().get(map_id);
         }
-        return cache_mapNames.get(map_id);
     }
 
     private List<Gw2Event> _getEvents(String url) {
