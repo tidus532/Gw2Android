@@ -11,9 +11,11 @@ public class Gw2DB extends SQLiteOpenHelper {
 
     public static final String WORLD_NAMES_TABLE = "world_names";
     public static final String MAP_NAMES_TABLE = "map_names";
+    public static final String EVENT_NAMES_TABLE = "event_names";
 
     private static final String CREATE_WORLD_TABLE = "create table "+WORLD_NAMES_TABLE+" (_id integer, name text not null);";
     private static final String CREATE_MAP_TABLE = "create table "+MAP_NAMES_TABLE+" (_id integer, name text not null);";
+    private static final String CREATE_EVENT_TABLE = "create table "+EVENT_NAMES_TABLE+" (_id text not null, name text not null, lang text not null);";
 
     private final static String DATABASE_NAME = "world_names.db";
     private final static int DATABASE_VERSION = 1;
@@ -26,10 +28,11 @@ public class Gw2DB extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase sqLiteDatabase) {
         sqLiteDatabase.execSQL(CREATE_WORLD_TABLE);
         sqLiteDatabase.execSQL(CREATE_MAP_TABLE);
+        sqLiteDatabase.execSQL(CREATE_EVENT_TABLE);
     }
 
     @Override
-    public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i2) {
+    public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i1, int i2) {
 
     }
 }

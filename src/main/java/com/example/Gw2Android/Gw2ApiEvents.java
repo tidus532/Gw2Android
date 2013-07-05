@@ -24,7 +24,6 @@ public class Gw2ApiEvents extends Gw2ApiBase {
     public final static String LANG_ES = "es";
 
     private Gw2DB dbhelper;
-    private SQLiteDatabase db;
 
     /**
      * @param context
@@ -62,6 +61,7 @@ public class Gw2ApiEvents extends Gw2ApiBase {
 
     private HashMap<Integer, String> _getWorldNamesFromDB() {
         Log.d("Gw2", "Fetching world names from DB.");
+        SQLiteDatabase db = this.dbhelper.getReadableDatabase();
         Cursor cursor = db.query(Gw2DB.WORLD_NAMES_TABLE, null, null, null, null, null, null);
         cursor.moveToFirst();
         HashMap<Integer, String> worldNames = new HashMap<Integer, String>();
@@ -75,37 +75,6 @@ public class Gw2ApiEvents extends Gw2ApiBase {
         return worldNames;
     }
 
-    private HashMap<Integer, String> _getWorldNamesFromJSON() {
-        Log.d("Gw2", "Fetching world names via JSON.");
-        String result = this.fetchJSONfromURL(event_world_names_url);
-        db = this.dbhelper.getWritableDatabase();
-        HashMap<Integer, String> worldNames = new HashMap<Integer, String>();
-        JSONArray jsData;
-
-        try {
-            jsData = new JSONArray(result);
-
-            for (int i = 0; i < jsData.length(); i++) {
-                JSONObject obj = jsData.getJSONObject(i);
-                Integer id = obj.getInt("id");
-                String name = obj.getString("name");
-
-                ContentValues row = new ContentValues(2);
-                row.put("_id", id);
-                row.put("name", name);
-
-                if (db != null) {
-                    db.insert(Gw2DB.WORLD_NAMES_TABLE, null, row);
-                }
-
-                worldNames.put(id, name);
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return worldNames;
-    }
-
     /**
      * Returns all world names and their id's. T
      * his method keeps a cache in memory and is backed by a database.
@@ -113,17 +82,16 @@ public class Gw2ApiEvents extends Gw2ApiBase {
     public HashMap<Integer, String> getWorldNames() {
         if (this._hasWorldNamesInDB()) {
             return this._getWorldNamesFromDB();
-        } else {
-            return this._getWorldNamesFromJSON();
         }
+        return null;
     }
 
     public String getWorldName(int world_id) {
         if (this._hasWorldNamesInDB()) {
             return this._getWorldNamesFromDB().get(world_id);
-        } else {
-            return this._getWorldNamesFromJSON().get(world_id);
         }
+
+        return null;
     }
 
     private boolean _hasMapNamesInDB() {
@@ -144,6 +112,7 @@ public class Gw2ApiEvents extends Gw2ApiBase {
 
     private HashMap<Integer, String> _getMapNamesFromDB() {
         Log.d("Gw2", "Fetching map names from DB.");
+        SQLiteDatabase db = this.dbhelper.getReadableDatabase();
         Cursor cursor = db.query(Gw2DB.MAP_NAMES_TABLE, null, null, null, null, null, null);
         cursor.moveToFirst();
         HashMap<Integer, String> mapNames = new HashMap<Integer, String>();
@@ -158,37 +127,6 @@ public class Gw2ApiEvents extends Gw2ApiBase {
         return mapNames;
     }
 
-    private HashMap<Integer, String> _getMapNamesFromJSON() {
-        Log.d("Gw2", "Fetching map names from JSON.");
-        String result = this.fetchJSONfromURL(event_map_names_url);
-        db = this.dbhelper.getWritableDatabase();
-        HashMap<Integer, String> mapNames = new HashMap<Integer, String>();
-        JSONArray jsData;
-
-        try {
-            jsData = new JSONArray(result);
-
-            for (int i = 0; i < jsData.length(); i++) {
-                JSONObject obj = jsData.getJSONObject(i);
-                Integer id = obj.getInt("id");
-                String name = obj.getString("name");
-
-                ContentValues row = new ContentValues(2);
-                row.put("_id", id);
-                row.put("name", name);
-
-                if (db != null) {
-                    db.insert(Gw2DB.MAP_NAMES_TABLE, null, row);
-                }
-
-                mapNames.put(id, name);
-            }
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return mapNames;
-    }
-
     /**
      * Get all map names with their id.
      *
@@ -198,10 +136,9 @@ public class Gw2ApiEvents extends Gw2ApiBase {
 
         if (this._hasMapNamesInDB()) {
             return this._getMapNamesFromDB();
-        } else {
-            return this._getMapNamesFromJSON();
         }
 
+        return null;
     }
 
     /**
@@ -214,14 +151,35 @@ public class Gw2ApiEvents extends Gw2ApiBase {
     public String getMapName(int map_id) {
         if (this._hasMapNamesInDB()) {
             return this._getMapNamesFromDB().get(map_id);
-        } else {
-            return this._getMapNamesFromJSON().get(map_id);
         }
+
+        return null;
     }
 
     private List<Gw2Event> _getEvents(String url) {
+        Log.d("Gw2", "Fetching event names from DB.");
+        SQLiteDatabase db = this.dbhelper.getWritableDatabase();
+        Cursor cursor = db.query(Gw2DB.EVENT_NAMES_TABLE, null, null, null, null, null, null);
+        HashMap<String, String> eventNames = new HashMap<String, String>();
+
+        if (cursor.getCount() == 0) {
+           cursor.close();
+           return new ArrayList<Gw2Event>();
+        }
+
+        cursor.moveToFirst();
+        while (!cursor.isLast()) {
+            String id = cursor.getString(0);
+            String name = cursor.getString(1);
+            eventNames.put(id, name);
+            cursor.moveToNext();
+        }
+        cursor.close();
+
+        Log.d("Gw2", "Fetching event data from JSON");
         ArrayList<Gw2Event> list = new ArrayList<Gw2Event>();
         try {
+            //Log.d("Gw2", url);
             String result = this.fetchJSONfromURL(url);
             JSONObject jsData = new JSONObject(result);
             JSONArray jsArray = jsData.getJSONArray("events");
@@ -232,7 +190,7 @@ public class Gw2ApiEvents extends Gw2ApiBase {
                 int map_id = obj.getInt("map_id");
                 String event_id = obj.getString("event_id");
                 String state = obj.getString("state");
-                list.add(new Gw2Event(world_id, map_id, event_id, state));
+                list.add(new Gw2Event(world_id, map_id, event_id, state, eventNames.get(event_id)));
             }
 
         } catch (JSONException e) {
@@ -242,54 +200,44 @@ public class Gw2ApiEvents extends Gw2ApiBase {
     }
 
     /**
-     * Gets all events of a world or map.
-     * Set isWorldId to true to get all events of a world.
-     * Set isWorldId to false to get all events of a certain map across all worlds.
-     * This method is not cached and not backed by a database (state of an event can change).
-     *
-     * @param id
-     * @param isWorldId
-     * @return
-     */
-    public List<Gw2Event> getEvents(int id, boolean isWorldId) {
-        if (isWorldId) {
-            return this._getEvents(event_url + "?world_id=" + id);
-        } else {
-            return this._getEvents(event_url + "?map_id=" + id);
-        }
-    }
-
-    /**
-     * Gets a specific event across all worlds.
+     * Fetches event data based on the arguments given.
+     * Requesting all events across all servers is not a good idea and will result in out of memory errors.
      *
      * @param event_id
-     * @return
-     */
-    public List<Gw2Event> getEvents(String event_id) {
-        return this._getEvents(event_url + "?event_id=" + event_id);
-    }
-
-    /**
-     * Gets all events on a certain map of a world.
-     *
      * @param world_id
      * @param map_id
      * @return
      */
-    public List<Gw2Event> getEvents(int world_id, int map_id) {
-        return this._getEvents(event_url + "?world_id=" + world_id + "&map_id=" + map_id);
+    public List<Gw2Event> getEvents(String event_id, int world_id, int map_id) {
+        String final_url = event_url;
+        boolean first = true;
+
+        if (event_id != null) {
+            final_url = final_url + "?event_id=" + event_id;
+            first = false;
+        }
+
+        if (world_id > 0) {
+            if (first) {
+                final_url = final_url + "?world_id=" + world_id;
+                first = false;
+            } else {
+                final_url = final_url + "&world_id=" + world_id;
+            }
+        }
+
+        if (map_id > 0) {
+            if (first) {
+                final_url = final_url + "?map_id=" + map_id;
+            } else {
+                final_url = final_url + "&map_id=" + map_id;
+            }
+        }
+
+        return this._getEvents(final_url);
     }
 
-    /**
-     * Gets a certain event on a world.
-     *
-     * @param world_id
-     * @param event_id
-     * @return
-     */
-    public List<Gw2Event> getEvents(int world_id, String event_id) {
-        return this._getEvents(event_url + "?world_id" + world_id + "&event_id=" + event_id);
+    public void getEventsStatic(){
+
     }
-
-
 }

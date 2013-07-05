@@ -8,11 +8,14 @@ import android.os.AsyncTask;
 import android.os.StrictMode;
 import android.test.ActivityUnitTestCase;
 import android.test.suitebuilder.annotation.SmallTest;
+import android.util.Log;
 
 import com.example.Gw2Android.Gw2ApiEvents;
 import com.example.Gw2Android.Gw2DB;
+import com.example.Gw2Android.Gw2Event;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 
@@ -140,6 +143,12 @@ public class Gw2EventApiTest extends ActivityUnitTestCase {
 
     }
 
+    @SmallTest
+    public void testEvents1(){
+
+            new EventsTask1().execute(gw2);
+    }
+
     private class WorldNamesTask extends AsyncTask<Gw2ApiEvents, Void, HashMap<Integer, String>> {
 
         @Override
@@ -168,6 +177,25 @@ public class Gw2EventApiTest extends ActivityUnitTestCase {
             assertEquals("Southsun Cove", mapNames.get(873));
             assertEquals("Mount Maelstrom", mapNames.get(39));
             assertEquals("Blazeridge Steppes", mapNames.get(20));
+        }
+    }
+
+    private class EventsTask1 extends AsyncTask<Gw2ApiEvents, Void, List<Gw2Event>> {
+
+        @Override
+        protected List<Gw2Event> doInBackground(Gw2ApiEvents... gw2) {
+            Log.d("Gw2", "Executing in background.");
+            List<Gw2Event> eventList = gw2[0].getEvents(2005, true);
+            Log.d("Gw2", "Returning results");
+            return eventList;
+        }
+
+        @Override
+        protected void onPostExecute(List<Gw2Event> eventList) {
+            super.onPostExecute(eventList);
+            Log.d("Gw2", "Testing events list");
+            Gw2Event test = new Gw2Event(2005, 35, "9", "Ace");
+            assertEquals(true, eventList.contains(test));
         }
     }
 }
