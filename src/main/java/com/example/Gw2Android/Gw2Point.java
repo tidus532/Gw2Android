@@ -13,12 +13,17 @@
         You should have received a copy of the GNU General Public License
         along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 */
-
 package com.example.Gw2Android;
 
 /**
- * Created by tidus on 3/07/13.
+ * Created by tidus on 6/07/13.
  */
-public interface Gw2ITileReceiver {
-    public void receiveTile(Gw2Tile tile);
+public class Gw2Point {
+    public int x;
+    public int y;
+
+    public Gw2Point(int x, int y){
+        this.x = x;
+        this.y = y;
+    }
 }

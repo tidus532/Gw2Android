@@ -1,19 +1,28 @@
+/*      This file is part of Gw2Android.
+
+        Gw2Android is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 3 of the License, or
+        (at your option) any later version.
+
+        Gw2Android is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+
+        You should have received a copy of the GNU General Public License
+        along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 package com.example.Gw2Android;
 
 import android.content.Context;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
-import android.graphics.Rect;
 import android.graphics.RectF;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -31,7 +40,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
     private ArrayList<Gw2Tile> tiles;
     private Gw2TileProvider tileProvider;
     private Paint mPaint;
-    private float mScale;
+    private float mScale = 1;
     private RectF mDstRect;
     private boolean zoom = false;
 
@@ -60,6 +69,51 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
         tileProvider.execute((Gw2Tile[]) tempList.toArray());
     }
 
+    /**
+     * Calculates to which tile a pixel belongs. Takes into account the current zoom level and scale.
+     */
+    protected Gw2Point pixelToTile(float x, float y){
+        float sizeOfTiles = 256 * mScale;
+        int tileX = (int) Math.floor(x / sizeOfTiles);
+        int tileY = (int) Math.floor(y / sizeOfTiles);
+        Log.d("Gw2", "Tile coord: ("+tileX+","+tileY+")");
+        return new Gw2Point(tileX, tileY);
+    }
+
+    /**
+     * Returns the tile coordinates a tile while have in the next zoomlevel.
+     */
+    protected Gw2Point[] tileToNextZoomLevel(int x, int y){
+        int x1;
+        int x2;
+        int y1;
+        int y2;
+
+        if(x == 0){
+            x1 = 0;
+            x2 = 1;
+        } else {
+            x1 = x *2;
+            x2 = x1 +1;
+        }
+
+        if(y == 0){
+            y1 = 0;
+            y2 = 1;
+        } else {
+            y1 = y * 2;
+            y2 = y1 +1;
+        }
+        Gw2Point[] points = new Gw2Point[] {new Gw2Point(x1, y1), new Gw2Point(x1, y2), new Gw2Point(x2, y1),new Gw2Point(x2, y2)};
+
+        Log.d("Gw2", "("+x1+","+y1+")");
+        Log.d("Gw2", "("+x1+","+y2+")");
+        Log.d("Gw2", "("+x2+","+y1+")");
+        Log.d("Gw2", "("+x2+","+y2+")");
+
+        return points;
+    }
+
     protected void determineZoomAndTiles(){
         double temp = mWidth / 256.0;
         tilesH = (int) Math.ceil(temp);
@@ -69,7 +123,11 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
         Log.d("Gw2", "tilesV "+tilesV);
 
         currentZoom = (int) Math.ceil(Math.max(Math.log((double) tilesH) / Math.log(2.0), Math.log((double) tilesV) / Math.log(2.0)));
-        mScale = mWidth / (float) (Math.pow(2, currentZoom)*256);
+        if(mWidth < mHeight){
+            mScale = mWidth / (float) (Math.pow(2, currentZoom)*256);
+        } else {
+            mScale = mHeight / (float) (Math.pow(2, currentZoom)*256);
+        }
         Log.d("Gw2", "ZOOM: "+currentZoom);
 
     }
@@ -114,15 +172,24 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
         if(action == MotionEvent.ACTION_UP){
             float x = event.getX();
             float y = event.getY();
-
+            Gw2Point p = pixelToTile(x, y);
+            Gw2Point[] tileCoord = tileToNextZoomLevel(p.x, p.y);
+            this.tiles.clear();
+            Gw2Tile[] download = new Gw2Tile[4];
+            for(int i = 0; i < tileCoord.length; i++){
+               download[i] = new Gw2Tile(1, 1, currentZoom+1, tileCoord[i].x, tileCoord[i].y, null);
+            }
+            mScale = 1;
+            currentZoom++;
+            this.tileProvider = new Gw2TileProvider(this);
+            tileProvider.execute(download);
             //Zoom 50%
-            float left = x / 2;
+            /*float left = x / 2;
             float top = y / 2;
             float right = (mWidth - x) / 2;
             float bottom = (mHeight - y) / 2;
             mDstRect.set(left, top, right, bottom);
-            zoom = true;
-            invalidate();
+            zoom = true;*/
         }
         return true;
     }
