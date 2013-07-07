@@ -43,14 +43,25 @@ public class Gw2TileProvider extends AsyncTask<Gw2Tile[], Gw2Tile, Void> {
     protected Gw2Tile downloadTile(Gw2Tile tile){
 
         try {
-            String url = constructURL(tile.getContinentId(), tile.getFloor(), tile.getZ(),tile.getX(),tile.getY());
-            Log.d("Gw2", url);
+            if(tile == null){
+                Log.e("Gw2", "Tile is null");
+            }
+            if(tile.tileCoord == null){
+                Log.e("Gw2", "tileCoord is null");
+            }
+
+
+            String url = constructURL(tile.continent_id, tile.floor, tile.zoom,tile.tileCoord.x,tile.tileCoord.y);
+            //Log.d("Gw2", url);
             InputStream is = new URL(url).openStream();
-            tile.setBitmap(BitmapFactory.decodeStream(is));
+            tile.bitmap = BitmapFactory.decodeStream(is);
+            if(tile.bitmap == null){
+                Log.e("Gw2", "Error downloading tile "+url);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        if(tile.getBitmap() == null){
+        if(tile.bitmap == null){
            Log.d("Gw2", "Shits not lookin good bro");
         }
 

@@ -21,75 +21,27 @@ import android.graphics.Bitmap;
  * Created by tidus on 3/07/13.
  */
 public class Gw2Tile {
-    public Bitmap mTile;
+    public Bitmap bitmap;
     public int continent_id;
     public int floor;
-    public int z;
-    public int x;
-    public int y;
+    public int zoom;
+    Gw2Point tileCoord;
+    Gw2Point screenCoord;
 
-    public int getContinentId() {
-        return continent_id;
-    }
-
-    public void setContinentId(int continent_id) {
-        this.continent_id = continent_id;
-    }
-
-    public int getFloor() {
-        return floor;
-    }
-
-    public void setFloor(int floor) {
-        this.floor = floor;
-    }
-
-    public int getZ() {
-        return z;
-    }
-
-    public void setZ(int z) {
-        this.z = z;
-    }
-
-    public int getX() {
-        return x;
-    }
-
-    public void setX(int x) {
-        this.x = x;
-    }
-
-    public int getY() {
-        return y;
-    }
-
-    public void setY(int y) {
-        this.y = y;
-    }
-
-    public Gw2Tile(int continent_id, int floor, int z, int x, int y, Bitmap tile){
-        mTile = tile;
+    public Gw2Tile(int continent_id, int floor, int zoom, Gw2Point tileCoord, Gw2Point screenCoord, Bitmap tile){
+        bitmap = tile;
         this.continent_id = continent_id;
         this.floor = floor;
-        this.z = z;
-        this.x = x;
-        this.y = y;
+        this.tileCoord = tileCoord;
+        this.screenCoord = screenCoord;
+        this.zoom = zoom;
     }
 
-    public Gw2Tile(int continent_id, int floor, int z, int x, int y){
+    public Gw2Tile(int continent_id, int floor, int zoom, Gw2Point tileCoord, Gw2Point screenCoord){
         this.continent_id = continent_id;
         this.floor = floor;
-        this.z = z;
-        this.x = x;
-        this.y = y;
-    }
-
-    public Bitmap getBitmap(){
-        return this.mTile;
-    }
-
-    public void setBitmap(Bitmap tile){
-        mTile = tile;
+        this.tileCoord = tileCoord;
+        this.screenCoord = screenCoord;
+        this.zoom = zoom;
     }
 }
