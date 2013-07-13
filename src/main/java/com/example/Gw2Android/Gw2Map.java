@@ -20,6 +20,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.support.v4.view.GestureDetectorCompat;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -41,8 +42,13 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
     private Gw2TileProvider mTileProvider;
     private Paint mPaint;
     private float mScale = 1;
+    private float mTranslateX = 0;
+    private float mTranslateY = 0;
     private RectF mDstRect;
-    private boolean zoom = false;
+    private GestureDetectorCompat mDetector;
+    private float lastTouchX = 0;
+    private float lastTouchY = 0;
+    private int mLastAction = 0;
 
     public Gw2Map(Context context) {
         super(context);
@@ -50,6 +56,8 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
         this.tiles = new ArrayList<Gw2Tile>();
         mPaint = new Paint();
         mDstRect = new RectF();
+        lastTouchY = 0;
+        lastTouchX = 0;
     }
 
     /**
@@ -66,35 +74,17 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
         //Determine initial zoom so that we fill the entire view.
         mCurrentZoom = (int) Math.ceil(Math.max(Math.log((double) mTilesX) / Math.log(2.0), Math.log((double) mTilesY) / Math.log(2.0)));
 
-        //Determine scale so whole map fits onto screen. TODO: should remove scaling.
-        if(mWidth < mHeight){
-            mScale = mWidth / (float) (Math.pow(2, mCurrentZoom)*256);
-        } else {
-            mScale = mHeight / (float) (Math.pow(2, mCurrentZoom)*256);
-        }
         Log.d("Gw2", "ZOOM: "+ mCurrentZoom);
+        this.center();
 
-        //Construct list of tile to download.
-        Gw2Tile tiles[] = new Gw2Tile[(int) (Math.pow(2, mCurrentZoom)) * (int) (Math.pow(2, mCurrentZoom))];
-        int k = 0;
-        for(int i = 0; i < (int) (Math.pow(2, mCurrentZoom)); i++){
-            for(int j = 0; j < (int) (Math.pow(2, mCurrentZoom)); j++){
-                Gw2Point coord = new Gw2Point(i, j);
-                tiles[k] = new Gw2Tile(1,1, mCurrentZoom,coord,coord);
-                k++;
-            }
-        }
 
-        //Shuffle them, looks cooler. Then download them.
-        List<Gw2Tile> tempList = Arrays.asList(tiles);
-        Collections.shuffle(tempList);
-        mTileProvider.execute((Gw2Tile[]) tempList.toArray());
     }
 
     /**
      * Calculates to which tile a pixel belongs. Takes into account the current zoom level and scale.
      */
     protected Gw2Point pixelToTile(float x, float y){
+        //TODO: translating.
         float sizeOfTiles = 256 * mScale;
         int tileX = (int) Math.floor(x / sizeOfTiles);
         int tileY = (int) Math.floor(y / sizeOfTiles);
@@ -102,12 +92,12 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
         int yLowerBound = Integer.MAX_VALUE;
 
         for(int i = 0; i < tiles.size(); i++){
-            if (tiles.get(i).tileCoord.x < xLowerBound){
-                xLowerBound = tiles.get(i).tileCoord.x;
+            if (tiles.get(i).worldCoord.x < xLowerBound){
+                xLowerBound = tiles.get(i).worldCoord.x;
             }
 
-            if (tiles.get(i).tileCoord.y < yLowerBound){
-                yLowerBound = tiles.get(i).tileCoord.y;
+            if (tiles.get(i).worldCoord.y < yLowerBound){
+                yLowerBound = tiles.get(i).worldCoord.y;
             }
 
         }
@@ -173,28 +163,24 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
 
     @Override
     protected void onDraw(Canvas canvas){
-        if(zoom){
-            canvas.scale((float) 1.5, (float) 1.5);
-            zoom = false;
-        }
-        else {
+
             if(tiles != null){
                 for(int i = 0; i < tiles.size(); i++){
                     Gw2Tile tile = tiles.get(i);
-                    mDstRect.set( (float) (tile.screenCoord.x*256*mScale), (float) (tile.screenCoord.y*256*mScale), (float) ((tile.screenCoord.x+1)*256*mScale), (float) ((tile.screenCoord.y+1)*256*mScale));
+                    tile.screenRect.set( (float) (tile.screenCoord.x*256*mScale+mTranslateX), (float) (tile.screenCoord.y*256*mScale+mTranslateY), (float) ((tile.screenCoord.x+1)*256*mScale+mTranslateX), (float) ((tile.screenCoord.y+1)*256*mScale+mTranslateY));
                     mPaint.setFilterBitmap(true);
                     if(tile.bitmap == null){
                         Log.e("Gw2", "Tile ("+tile.screenCoord.x+","+tile.screenCoord.y+") bitmap was null");
+                    } else {
+                        canvas.drawBitmap(tile.bitmap, null, tile.screenRect, mPaint);
                     }
-                    canvas.drawBitmap(tile.bitmap, null, mDstRect, mPaint);
                 }
             }
-        }
     }
 
     @Override
     public void receiveTile(Gw2Tile tile) {
-        Log.d("Gw2", "Received a fucking tile, F-F-UCK");
+        //Log.d("Gw2", "Received a fucking tile, F-F-UCK");
         tiles.add(tile);
         invalidate();
     }
@@ -203,9 +189,14 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
     public boolean onTouchEvent(MotionEvent event){
         int action = event.getAction();
 
-        if(action == MotionEvent.ACTION_UP){
+        if(action == MotionEvent.ACTION_UP && mLastAction == MotionEvent.ACTION_DOWN){
 
-            Gw2Point p = pixelToTile(event.getX(), event.getY());
+            Gw2Point p = null;
+            for(int i = 0; i < tiles.size(); i++){
+                if(tiles.get(i).screenRect.contains(event.getX(), event.getY())){
+                    p = tiles.get(i).worldCoord;
+                }
+            }
             Gw2Point[][] tileCoord = getNearestTilesAtNextZoomLevel(p.x, p.y);
             this.tiles.clear();
             Gw2Tile[] download = new Gw2Tile[4];
@@ -223,8 +214,123 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
             mCurrentZoom++;
             this.mTileProvider = new Gw2TileProvider(this);
             Log.d("Gw2", "ZOOM: "+ mCurrentZoom);
+
             mTileProvider.execute(download);
+
+            mLastAction = MotionEvent.ACTION_UP;
+        }
+
+        if(action == MotionEvent.ACTION_DOWN){
+            final float x = event.getX();
+            final float y = event.getY();
+
+            lastTouchX = x;
+            lastTouchY = y;
+
+            mLastAction = MotionEvent.ACTION_DOWN;
+        }
+
+        if(action == MotionEvent.ACTION_MOVE){
+            final float x = event.getX();
+            final float y = event.getY();
+
+            mTranslateX += x - lastTouchX;
+            mTranslateY += y - lastTouchY;
+
+            //Check if we need to download tiles.
+
+            //TODO: Check for all sides.
+            //TODO: Prune unecessary tiles.
+            for(int i = 0; i < tiles.size(); i++){
+                Gw2Tile tile = tiles.get(i);
+
+
+                if( tile.screenCoord.y == 0 && (tile.screenRect.top + mTranslateY > 0)){
+                    Log.d("Gw2", "Need to download a new top row");
+
+                }
+            }
+
+            invalidate();
+
+            lastTouchX = x;
+            lastTouchY = y;
+
+            mLastAction = MotionEvent.ACTION_MOVE;
         }
         return true;
+    }
+
+    //Centers the map at the current zoom level.
+    protected void center(){
+        //Find center tile at current zoom level.
+        int center = (int) Math.floor(Math.pow(2, mCurrentZoom) / 2);
+
+        //Donwload tiles around the center tile.
+
+        //Download uneven number of tiles
+        int downloadX = mTilesX;
+        int downloadY = mTilesY;
+
+        if((mTilesX%2)==0){
+            downloadX++;
+        }
+
+        if((mTilesY%2)==0){
+            downloadY++;
+        }
+
+        Gw2Tile tiles[] = new Gw2Tile[downloadX*downloadY];
+
+        int k = 0;
+        int baseX = (int) Math.floor(downloadX/2);
+        int baseY = (int) Math.floor(downloadY/2);
+        for(int i = 0; i <= downloadX / 2; i++){
+            for(int j = 0; j <= downloadY / 2; j++){
+                Log.d("Gw2", "DOING SHIT");
+                if(i==0 && j==0){
+                    tiles[k] = new Gw2Tile(1,1, mCurrentZoom, new Gw2Point(center,center), new Gw2Point(baseX,baseY), null);
+                    k++;
+                }
+
+                if(i == 0 && j>0){
+                    tiles[k] = new Gw2Tile(1,1, mCurrentZoom, new Gw2Point(center,j+center), new Gw2Point(baseX,baseY+j), null);
+                    k++;
+                    tiles[k] = new Gw2Tile(1,1, mCurrentZoom, new Gw2Point(center,-j+center), new Gw2Point(baseX,baseY-j), null);
+                    k++;
+                }
+
+                if(i>0 && j ==0){
+                    tiles[k] = new Gw2Tile(1,1, mCurrentZoom, new Gw2Point(center+i,center), new Gw2Point(baseX+i,baseY), null);
+                    k++;
+
+                    tiles[k] = new Gw2Tile(1,1, mCurrentZoom, new Gw2Point(center-i,center), new Gw2Point(baseX-i,baseY), null);
+                    k++;
+                }
+
+                if(i>0 && j>0){
+                    tiles[k] = new Gw2Tile(1,1, mCurrentZoom, new Gw2Point(center+i,center+j), new Gw2Point(baseX+i,baseY+j), null);
+                    k++;
+
+                    tiles[k] = new Gw2Tile(1,1, mCurrentZoom, new Gw2Point(center+i,center-j), new Gw2Point(baseX+i,baseY-j), null);
+                    k++;
+
+                    tiles[k] = new Gw2Tile(1,1, mCurrentZoom, new Gw2Point(center-i,center+j), new Gw2Point(baseX-i,baseY+j), null);
+                    k++;
+
+                    tiles[k] = new Gw2Tile(1,1, mCurrentZoom, new Gw2Point(center-i,center-j), new Gw2Point(baseX-i,baseY-j), null);
+                    k++;
+                }
+            }
+        }
+        Log.d("Gw2","Test1 "+ downloadX/2);
+        Log.d("Gw2","Test2 "+ downloadY/2);
+        Log.d("Gw2","Allocated "+ downloadX*downloadY);
+        Log.d("Gw2", "K: "+k);
+
+        //Shuffle them, looks cooler. Then download them.
+        List<Gw2Tile> tempList = Arrays.asList(tiles);
+        Collections.shuffle(tempList);
+        mTileProvider.execute((Gw2Tile[]) tempList.toArray());
     }
 }

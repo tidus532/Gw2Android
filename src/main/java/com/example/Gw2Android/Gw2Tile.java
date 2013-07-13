@@ -16,6 +16,7 @@
 package com.example.Gw2Android;
 
 import android.graphics.Bitmap;
+import android.graphics.RectF;
 
 /**
  * Created by tidus on 3/07/13.
@@ -25,23 +26,26 @@ public class Gw2Tile {
     public int continent_id;
     public int floor;
     public int zoom;
-    Gw2Point tileCoord;
-    Gw2Point screenCoord;
+    public Gw2Point worldCoord;
+    public Gw2Point screenCoord;
+    public RectF screenRect;
 
-    public Gw2Tile(int continent_id, int floor, int zoom, Gw2Point tileCoord, Gw2Point screenCoord, Bitmap tile){
+    public Gw2Tile(int continent_id, int floor, int zoom, Gw2Point worldCoord, Gw2Point screenCoord, Bitmap tile){
         bitmap = tile;
         this.continent_id = continent_id;
         this.floor = floor;
-        this.tileCoord = tileCoord;
+        this.worldCoord = worldCoord;
         this.screenCoord = screenCoord;
         this.zoom = zoom;
+        this.screenRect = new RectF();
     }
 
-    public Gw2Tile(int continent_id, int floor, int zoom, Gw2Point tileCoord, Gw2Point screenCoord){
+    public Gw2Tile(int continent_id, int floor, int zoom, Gw2Point worldCoord, Gw2Point screenCoord){
         this.continent_id = continent_id;
         this.floor = floor;
-        this.tileCoord = tileCoord;
+        this.worldCoord = worldCoord;
         this.screenCoord = screenCoord;
         this.zoom = zoom;
+        this.screenRect = new RectF();
     }
 }

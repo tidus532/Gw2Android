@@ -16,7 +16,6 @@
 
 package com.example.Gw2Android;
 
-import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.util.Log;
@@ -46,12 +45,12 @@ public class Gw2TileProvider extends AsyncTask<Gw2Tile[], Gw2Tile, Void> {
             if(tile == null){
                 Log.e("Gw2", "Tile is null");
             }
-            if(tile.tileCoord == null){
-                Log.e("Gw2", "tileCoord is null");
+            if(tile.worldCoord == null){
+                Log.e("Gw2", "worldCoord is null");
             }
 
 
-            String url = constructURL(tile.continent_id, tile.floor, tile.zoom,tile.tileCoord.x,tile.tileCoord.y);
+            String url = constructURL(tile.continent_id, tile.floor, tile.zoom,tile.worldCoord.x,tile.worldCoord.y);
             //Log.d("Gw2", url);
             InputStream is = new URL(url).openStream();
             tile.bitmap = BitmapFactory.decodeStream(is);
