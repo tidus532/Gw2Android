@@ -23,6 +23,7 @@ import android.graphics.RectF;
 import android.support.v4.view.GestureDetectorCompat;
 import android.util.Log;
 import android.view.MotionEvent;
+import android.view.VelocityTracker;
 import android.view.View;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -44,8 +45,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
     private float mScale = 1;
     private float mTranslateX = 0;
     private float mTranslateY = 0;
-    private RectF mDstRect;
-    private GestureDetectorCompat mDetector;
+    private VelocityTracker mVelocityTracker = null;
     private float lastTouchX = 0;
     private float lastTouchY = 0;
     private int mLastAction = 0;
@@ -55,7 +55,6 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
         this.mTileProvider = new Gw2TileProvider(this);
         this.tiles = new ArrayList<Gw2Tile>();
         mPaint = new Paint();
-        mDstRect = new RectF();
         lastTouchY = 0;
         lastTouchX = 0;
     }
@@ -66,7 +65,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
     private void initialize(){
         //Determine number of tiles in x and y direction.
         mTilesX = (int) Math.ceil(mCanvasWidth / 256.0);
-        mTilesY = (int) Math.ceil( mCanvasHeight / 256.0);
+        mTilesY = (int) Math.ceil(mCanvasHeight / 256.0);
 
         Log.d("Gw2", "mTilesX "+ mTilesX);
         Log.d("Gw2", "mTilesY "+ mTilesY);
@@ -94,8 +93,6 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
             downloadY++;
         }
 
-        //Gw2Tile tiles[] = new Gw2Tile[downloadX*downloadY];
-
         int k = 0;
         int baseX = (int) Math.floor(downloadX/2);
         int baseY = (int) Math.floor(downloadY/2);
@@ -103,7 +100,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
             for(int j = 0; j <= downloadY / 2; j++){
                 Log.d("Gw2", "DOING SHIT");
                 if(i==0 && j==0){
-                    tiles.add(new Gw2Tile(1,1, mCurrentZoom, new Gw2Point(center,center), new Gw2Point(baseX,baseY), null));
+                    tiles.add(new Gw2Tile(1, 1, mCurrentZoom, new Gw2Point(center, center), new Gw2Point(baseX, baseY), null));
                     k++;
                 }
 
@@ -207,9 +204,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
                     Gw2Tile tile = tiles.get(i);
                     tile.screenRect.set( (float) (tile.screenCoord.x*256*mScale+mTranslateX), (float) (tile.screenCoord.y*256*mScale+mTranslateY), (float) ((tile.screenCoord.x+1)*256*mScale+mTranslateX), (float) ((tile.screenCoord.y+1)*256*mScale+mTranslateY));
                     mPaint.setFilterBitmap(true);
-                    if(tile.bitmap == null){
-                        Log.e("Gw2", "Tile ("+tile.screenCoord.x+","+tile.screenCoord.y+") bitmap was null");
-                    } else {
+                    if(tile.bitmap != null){
                         canvas.drawBitmap(tile.bitmap, null, tile.screenRect, mPaint);
                     }
                 }
@@ -218,11 +213,20 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
 
     @Override
     public void receiveTile(Gw2Tile tile) {
-        //Log.d("Gw2", "Received a fucking tile, F-F-UCK");
-        //tiles.add(tile);
         invalidate();
     }
 
+    /**
+     * Update exact positioning of all tiles.
+     */
+    protected void updatePosition(){
+        if(tiles != null){
+            for(int i = 0; i < tiles.size(); i++){
+                Gw2Tile tile = tiles.get(i);
+                tile.screenRect.set( (float) (tile.screenCoord.x*256*mScale+mTranslateX), (float) (tile.screenCoord.y*256*mScale+mTranslateY), (float) ((tile.screenCoord.x+1)*256*mScale+mTranslateX), (float) ((tile.screenCoord.y+1)*256*mScale+mTranslateY));
+            }
+        }
+    }
     @Override
     public boolean onTouchEvent(MotionEvent event){
         int action = event.getAction();
@@ -262,6 +266,13 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
         }
 
         if(action == MotionEvent.ACTION_DOWN){
+            if(mVelocityTracker == null){
+                mVelocityTracker = VelocityTracker.obtain();
+            } else {
+                mVelocityTracker.clear();
+            }
+
+            mVelocityTracker.addMovement(event);
             final float x = event.getX();
             final float y = event.getY();
 
@@ -279,8 +290,6 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
             mTranslateY += y - lastTouchY;
 
             //Check if we need to download tiles.
-
-            //TODO: Check for all sides.
             //TODO: Prune unecessary tiles.
 
             //Find higher bounds.
@@ -332,7 +341,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
 
             }
 
-            //TODO: bounds can change!!
+            //TODO: new tiles do not have a correct screenRect yet. This causes some problems.
             if(top){
                 ArrayList<Gw2Tile> downloadList = new ArrayList<Gw2Tile>();
 
@@ -340,15 +349,16 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
                 for (Gw2Tile tile : tiles) {
 
                     if (tile.screenCoord.y == 0 && (tile.screenRect.top + mTranslateY > 0) && tile.worldCoord.y-1 >= 0) {
-                        downloadList.add(new Gw2Tile(1, 1, mCurrentZoom, new Gw2Point(tile.worldCoord.x, tile.worldCoord.y - 1), new Gw2Point(tile.screenCoord.x,0), null));
+                        Gw2Tile temp = new Gw2Tile(1, 1, mCurrentZoom, new Gw2Point(tile.worldCoord.x, tile.worldCoord.y - 1), new Gw2Point(tile.screenCoord.x,0), null);
+                        downloadList.add(temp);
                     }
 
                     tile.screenCoord.y++;
-
                 }
                 yScreenHigherBound++;
                 //Translate all the tiles so we don't get a sudden jump.
                 mTranslateY = -256;
+                updatePosition();
                 this.tiles.addAll(downloadList);
                 this.mTileProvider = new Gw2TileProvider(this);
                 this.mTileProvider.execute(downloadList.toArray(new Gw2Tile[downloadList.size()]));
@@ -368,6 +378,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
                 //Translate all the tiles so we don't get a sudden jump.
                 //mTranslateY = 256;
                 yScreenHigherBound++;
+                updatePosition();
                 this.tiles.addAll(downloadList);
                 this.mTileProvider = new Gw2TileProvider(this);
                 this.mTileProvider.execute(downloadList.toArray(new Gw2Tile[downloadList.size()]));
@@ -386,6 +397,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
                 //Translate all the tiles so we don't get a sudden jump.
                 xScreenHigherBound++;
                 mTranslateX = -256;
+                updatePosition();
                 this.tiles.addAll(downloadList);
                 this.mTileProvider = new Gw2TileProvider(this);
                 this.mTileProvider.execute(downloadList.toArray(new Gw2Tile[downloadList.size()]));
@@ -404,6 +416,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver{
                 //Translate all the tiles so we don't get a sudden jump.
 
                 xScreenHigherBound++;
+                updatePosition();
                 this.tiles.addAll(downloadList);
                 this.mTileProvider = new Gw2TileProvider(this);
                 this.mTileProvider.execute(downloadList.toArray(new Gw2Tile[downloadList.size()]));
