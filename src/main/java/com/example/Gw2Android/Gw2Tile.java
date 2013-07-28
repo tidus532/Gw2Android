@@ -17,18 +17,23 @@ package com.example.Gw2Android;
 
 import android.graphics.Bitmap;
 import android.graphics.RectF;
+import android.util.Log;
 
 /**
  * Created by tidus on 3/07/13.
  */
 public class Gw2Tile {
-    public Bitmap bitmap;
+    public Bitmap bitmap = null;
     public int continent_id;
     public int floor;
     public int zoom;
-    public Gw2Point worldCoord;
-    public Gw2Point screenCoord;
-    public RectF screenRect;
+    public Gw2Point worldCoord = null;
+    public Gw2Point screenCoord = null;
+    public RectF screenRect = null;
+
+    public Gw2Tile(){
+        this.screenRect = new RectF();
+    }
 
     public Gw2Tile(int continent_id, int floor, int zoom, Gw2Point worldCoord, Gw2Point screenCoord, Bitmap tile){
         bitmap = tile;
@@ -47,5 +52,15 @@ public class Gw2Tile {
         this.screenCoord = screenCoord;
         this.zoom = zoom;
         this.screenRect = new RectF();
+    }
+
+    public void set(int continent_id, int floor, int zoom, Gw2Point worldCoord){
+        this.continent_id = continent_id;
+        this.floor = floor;
+        if(worldCoord == null){
+            Log.d("Gw2", "Gw2Tile::set worldCoord is null");
+        }
+        this.worldCoord = worldCoord;
+        this.zoom = zoom;
     }
 }
