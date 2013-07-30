@@ -26,7 +26,6 @@ import android.view.VelocityTracker;
 import android.view.View;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 /**
  * Created by tidus on 29/06/13.
@@ -145,25 +144,13 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
         invalidate();
     }
 
-    /**
-     * Update exact positioning of all tiles.
-     */
-    protected void updatePosition() {
-        if (tiles != null) {
-            for (int i = 0; i < tiles.size(); i++) {
-                Gw2Tile tile = tiles.get(i);
-                tile.screenRect.set((float) (tile.screenCoord.x * 256 * mScale + mTranslateX), (float) (tile.screenCoord.y * 256 * mScale + mTranslateY), (float) ((tile.screenCoord.x + 1) * 256 * mScale + mTranslateX), (float) ((tile.screenCoord.y + 1) * 256 * mScale + mTranslateY));
-            }
-        }
-    }
-
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getAction();
 
         if (action == MotionEvent.ACTION_UP && mLastAction == MotionEvent.ACTION_DOWN) {
 
-            Gw2Point p = null;
+           /* Gw2Point p = null;
             for (int i = 0; i < tiles.size(); i++) {
                 if (tiles.get(i).screenRect.contains(event.getX(), event.getY())) {
                     p = tiles.get(i).worldCoord;
@@ -190,7 +177,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
 
             mTileProvider.execute(download);
 
-            mLastAction = MotionEvent.ACTION_UP;
+            mLastAction = MotionEvent.ACTION_UP;*/
         }
 
         if (action == MotionEvent.ACTION_DOWN) {
@@ -213,135 +200,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
         if (action == MotionEvent.ACTION_MOVE) {
             final float x = event.getX();
             final float y = event.getY();
-
-            //mTranslateX += x - lastTouchX;
-            //mTranslateY += y - lastTouchY;
             mMap.translate(x - lastTouchX, y - lastTouchY);
-
-            //Check if we need to download tiles.
-            //TODO: Prune unecessary tiles.
-
-            //Find higher bounds.
-            /*int xScreenHigherBound = 0;
-            int yScreenHigherBound = 0;
-
-            for (Gw2Tile tile : tiles) {
-                if (tile.screenCoord.x > xScreenHigherBound) {
-                    xScreenHigherBound = tile.screenCoord.x;
-                }
-
-                if (tile.screenCoord.y > yScreenHigherBound) {
-                    yScreenHigherBound = tile.screenCoord.y;
-                }
-            }
-
-            boolean top = false;
-            boolean bottom = false;
-            boolean left = false;
-            boolean right = false;
-            for (Gw2Tile tile : tiles) {
-
-                //Top
-                if (tile.screenCoord.y == 0 && (tile.screenRect.top + mTranslateY > 0)) {
-                    Log.d("Gw2", "Need to download a new top row");
-                    top = true;
-                }
-
-                //Bottom
-                if (tile.screenCoord.y == yScreenHigherBound && (tile.screenRect.bottom + mTranslateY <= mCanvasHeight)) {
-                    Log.d("Gw2", "Need to download a new bottom row");
-                    float temp = tile.screenRect.bottom + mTranslateY;
-                    bottom = true;
-                }
-
-                //Left
-                if (tile.screenCoord.x == 0 && (tile.screenRect.left + mTranslateX > 0)) {
-                    Log.d("Gw2", "Need to download a new left column");
-                    left = true;
-                }
-
-                //Right
-                if (tile.screenCoord.x == xScreenHigherBound && (tile.screenRect.right + mTranslateY <= mCanvasWidth)) {
-                    Log.d("Gw2", "Need to download a new right column");
-                    right = true;
-                }
-
-            }
-
-            //TODO: new tiles do not have a correct screenRect yet. This causes some problems.
-            ArrayList<Gw2Tile> downloadList = new ArrayList<Gw2Tile>();
-            if (top) {
-
-
-                //Increase screen y coordinate by one for all tiles.
-                for (Gw2Tile tile : tiles) {
-
-                    if (tile.screenCoord.y == 0 && (tile.screenRect.top + mTranslateY > 0) && tile.worldCoord.y - 1 >= 0) {
-                        Gw2Tile temp = new Gw2Tile(1, 1, mCurrentZoom, new Gw2Point(tile.worldCoord.x, tile.worldCoord.y - 1), new Gw2Point(tile.screenCoord.x, 0), null);
-                        downloadList.add(temp);
-                        this.tiles.add(temp);
-                    }
-
-                    tile.screenCoord.y++;
-                }
-                yScreenHigherBound++;
-                //Translate all the tiles so we don't get a sudden jump.
-                mTranslateY = -256;
-                updatePosition();
-            }
-
-
-            if (bottom) {
-                for (Gw2Tile tile : tiles) {
-
-                    if (tile.screenCoord.y == yScreenHigherBound && (tile.screenRect.bottom + mTranslateY <= mCanvasHeight) && tile.worldCoord.y + 1 <= Math.pow(2, mCurrentZoom)) {
-                        Gw2Tile temp = new Gw2Tile(1, 1, mCurrentZoom, new Gw2Point(tile.worldCoord.x, tile.worldCoord.y + 1), new Gw2Point(tile.screenCoord.x, yScreenHigherBound + 1), null);
-                        downloadList.add(temp);
-                        this.tiles.add(temp);
-                    }
-                }
-
-                yScreenHigherBound++;
-                updatePosition();
-            }
-
-            if (left) {
-                for (Gw2Tile tile : tiles) {
-
-                    if (tile.screenCoord.x == 0 && (tile.screenRect.left + mTranslateX > 0) && tile.worldCoord.x - 1 >= 0) {
-                        Gw2Tile temp = new Gw2Tile(1, 1, mCurrentZoom, new Gw2Point(tile.worldCoord.x - 1, tile.worldCoord.y), new Gw2Point(0, tile.screenCoord.y), null);
-                        downloadList.add(temp);
-                        this.tiles.add(temp);
-                    }
-                    tile.screenCoord.x++;
-                }
-
-                //Translate all the tiles so we don't get a sudden jump.
-                xScreenHigherBound++;
-                mTranslateX = -256;
-                updatePosition();
-            }
-
-            if (right) {
-                for (Gw2Tile tile : tiles) {
-
-                    if (tile.screenCoord.x == xScreenHigherBound && (tile.screenRect.right + mTranslateX <= mCanvasWidth) && tile.worldCoord.x + 1 <= Math.pow(2, mCurrentZoom)) {
-                        Gw2Tile temp = new Gw2Tile(1, 1, mCurrentZoom, new Gw2Point(tile.worldCoord.x + 1, tile.worldCoord.y), new Gw2Point(xScreenHigherBound + 1, tile.screenCoord.y), null);
-                        downloadList.add(temp);
-                    }
-
-                }
-
-                xScreenHigherBound++;
-                updatePosition();
-                this.tiles.addAll(downloadList);
-
-            }
-
-            if (downloadList.size() > 0) {
-                this.mTileProvider = new Gw2TileProvider(this);
-                this.mTileProvider.execute(downloadList.toArray(new Gw2Tile[downloadList.size()]));
-            }*/
 
             invalidate();
 
@@ -364,12 +223,12 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
         private Paint mPaint;
 
         public Gw2MapStructure(int numRows, int numColumns, int cache) {
+
             mTiles = new ArrayList<ArrayList<Gw2Tile>>(numRows);
             for (int i = 0; i < numRows; i++) {
                 ArrayList<Gw2Tile> row = new ArrayList<Gw2Tile>(numColumns);
                 for (int j = 0; j < numColumns; j++) {
                     Gw2Tile temp = new Gw2Tile();
-                    temp.screenCoord = new Gw2Point(j, i);
                     row.add(temp);
                 }
                 mTiles.add(row);
@@ -379,14 +238,6 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
             mNumColumns = numColumns;
             mCache = cache;
             mPaint = new Paint();
-        }
-
-        public void addTile(int row, int column, Gw2Tile tile) {
-            mTiles.get(row).add(column, tile);
-        }
-
-        public void addRow(int rowNumber, ArrayList<Gw2Tile> row) {
-
         }
 
         public Gw2Tile getTile(int x, int y) {
@@ -400,12 +251,12 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
         /**
          * Recalculates the exact position of all tiles.
          */
-        private void updatePositions(){
+        private void updatePositions() {
             for (int i = 0; i < mTiles.size(); i++) {
                 ArrayList<Gw2Tile> row = mTiles.get(i);
                 for (int j = 0; j < row.size(); j++) {
                     Gw2Tile tile = row.get(j);
-                    tile.screenRect.set((float) (tile.screenCoord.x * 256 * mScale + mTranslateX), (float) (tile.screenCoord.y * 256 * mScale + mTranslateY), (float) ((tile.screenCoord.x + 1) * 256 * mScale + mTranslateX), (float) ((tile.screenCoord.y + 1) * 256 * mScale + mTranslateY));
+                    tile.screenRect.set((float) (j * 256 * mScale + mTranslateX), (float) (i * 256 * mScale + mTranslateY), (float) ((j + 1) * 256 * mScale + mTranslateX), (float) ((i + 1) * 256 * mScale + mTranslateY));
                 }
             }
         }
@@ -415,10 +266,10 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
                 ArrayList<Gw2Tile> row = mTiles.get(i);
                 for (int j = 0; j < row.size(); j++) {
                     Gw2Tile tile = row.get(j);
-                    tile.screenRect.set((float) (tile.screenCoord.x * 256 * mScale + mTranslateX), (float) (tile.screenCoord.y * 256 * mScale + mTranslateY), (float) ((tile.screenCoord.x + 1) * 256 * mScale + mTranslateX), (float) ((tile.screenCoord.y + 1) * 256 * mScale + mTranslateY));
+                    tile.screenRect.set((float) (j * 256 * mScale + mTranslateX), (float) (i * 256 * mScale + mTranslateY), (float) ((j + 1) * 256 * mScale + mTranslateX), (float) ((i + 1) * 256 * mScale + mTranslateY));
                     mPaint.setFilterBitmap(true);
-                    if (tile.bitmap != null) {
-                        canvas.drawBitmap(tile.bitmap, null, tile.screenRect, mPaint);
+                    if (tile.getBitmap() != null) {
+                        canvas.drawBitmap(tile.getBitmap(), null, tile.screenRect, mPaint);
                     }
                 }
             }
@@ -486,51 +337,117 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
          * @param x
          * @param y
          */
-        public void translate(float x, float y){
+        public void translate(float x, float y) {
             mTranslateX += x;
             mTranslateY += y;
             this.updatePositions();
 
-            Gw2Tile topLeftTile = getTile(0,0);
-            if(topLeftTile.screenRect.left > 0){
-                Log.d("Gw2", "Need to download new left column");
+            boolean download = false;
 
-               /* for (Gw2Tile tile : tiles) {
-
-                    if (tile.screenCoord.x == 0 && (tile.screenRect.left + mTranslateX > 0) && tile.worldCoord.x - 1 >= 0) {
-                        Gw2Tile temp = new Gw2Tile(1, 1, mCurrentZoom, new Gw2Point(tile.worldCoord.x - 1, tile.worldCoord.y), new Gw2Point(0, tile.screenCoord.y), null);
-                        downloadList.add(temp);
-                        this.tiles.add(temp);
+            Gw2Tile topLeftTile = getTile(0, 0);
+            if (topLeftTile.screenRect.left > 0) {
+                if (!(topLeftTile.worldCoord.x - 1 >= 0)) {
+                    mTranslateX -= x;
+                    this.updatePositions();
+                } else {
+                    Log.d("Gw2", "Need to download new left column");
+                    //Insert new column at beginning
+                    for (int i = 0; i < mNumRows; i++) {
+                        Gw2Tile tile = new Gw2Tile();
+                        mTiles.get(i).add(0, tile);
+                        tile.set(1, 1, mCurrentZoom, new Gw2Point(topLeftTile.worldCoord.x - 1, topLeftTile.worldCoord.y + i));
                     }
-                    tile.screenCoord.x++;
+                    mNumColumns++;
+                    mTranslateX = -256;
+                    this.updatePositions();
+                    topLeftTile = getTile(0, 0);
+                    download = true;
+                }
+            }
+
+            if (topLeftTile.screenRect.top > 0) {
+                if (!(topLeftTile.worldCoord.y - 1 >= 0)) {
+                    mTranslateY -= y;
+                    this.updatePositions();
+                } else {
+                    Log.d("Gw2", "Need to download new top row");
+
+                    //Insert new row at beginning
+                    ArrayList<Gw2Tile> row = new ArrayList<Gw2Tile>();
+                    mTiles.add(0, row);
+
+                    for (int i = 0; i < mNumColumns; i++) {
+                        Gw2Tile tile = new Gw2Tile();
+                        row.add(tile);
+                        tile.set(1, 1, mCurrentZoom, new Gw2Point(topLeftTile.worldCoord.x + i, topLeftTile.worldCoord.y - 1));
+                    }
+                    mNumRows++;
+                    mTranslateY = -256;
+
+                    this.updatePositions();
+                    download = true;
                 }
 
-                //Translate all the tiles so we don't get a sudden jump.
-                xScreenHigherBound++;
-                mTranslateX = -256;
-                updatePosition();*/
-
             }
 
-            if(topLeftTile.screenRect.top > 0){
-                Log.d("Gw2", "Need to download new top row");
+            Gw2Tile bottomRightTile = getTile(mNumColumns - 1, mNumRows - 1);
+            if (bottomRightTile.screenRect.bottom <= mCanvasHeight) {
+
+                if (!(bottomRightTile.worldCoord.y + 1 <= Math.pow(2, mCurrentZoom))) {
+                    mTranslateY -= y;
+                    this.updatePositions();
+                } else {
+                    Log.d("Gw2", "Need to download new bottom row");
+
+                    //Insert new row at the end
+                    ArrayList<Gw2Tile> row = new ArrayList<Gw2Tile>();
+                    mTiles.add(row);
+                    int worldX = getTile(0, mNumRows-1).worldCoord.x;
+
+                    for (int i = 0; i < mNumColumns; i++) {
+                        Gw2Tile tile = new Gw2Tile();
+                        row.add(tile);
+
+                        tile.set(1, 1, mCurrentZoom, new Gw2Point(worldX + i, bottomRightTile.worldCoord.y + 1));
+                    }
+                    mNumRows++;
+                    bottomRightTile = getTile(mNumColumns - 1, mNumRows - 1);
+
+                    this.updatePositions();
+                    download = true;
+                }
             }
 
-            Gw2Tile bottomRightTile = getTile(mNumColumns-1, mNumRows-1);
-            if(bottomRightTile.screenRect.bottom <= mCanvasHeight){
-                Log.d("Gw2", "Need to download new bottom row");
+
+           // Gw2Tile bottomRightTile = getTile(mNumColumns - 1, mNumRows - 1);
+            if (bottomRightTile.screenRect.right <= mCanvasWidth) {
+                if (!(bottomRightTile.worldCoord.x + 1 <= Math.pow(2, mCurrentZoom))) {
+                    mTranslateX -= x;
+                    this.updatePositions();
+                } else {
+                    Log.d("Gw2", "Need to download new right column");
+                    int worldY = getTile(mNumColumns-1, 0).worldCoord.y;
+                    //Insert new column the end
+                    for (int i = 0; i < mNumRows; i++) {
+                        Gw2Tile tile = new Gw2Tile();
+                        mTiles.get(i).add(mTiles.get(i).size(), tile);
+                        tile.set(1, 1, mCurrentZoom, new Gw2Point(bottomRightTile.worldCoord.x + 1, worldY + i));
+                    }
+                    mNumColumns++;
+                    this.updatePositions();
+                    download = true;
+                }
             }
 
-            if(bottomRightTile.screenRect.right <= mCanvasWidth){
-                Log.d("Gw2", "Need to download new right column");
+            if(download){
+                this.download();
             }
-
         }
 
         /**
          * Reset translation to zero.
          */
-        public void resetTranslation(){
+        public void resetTranslation() {
             mTranslateX = 0;
             mTranslateY = 0;
         }
