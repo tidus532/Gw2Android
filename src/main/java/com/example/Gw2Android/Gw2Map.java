@@ -38,11 +38,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
     private int mTilesX;
     private int mTilesY;
     private int mCurrentZoom;
-    private ArrayList<Gw2Tile> tiles;
-    private Gw2TileProvider mTileProvider;
     private float mScale = 1;
-    private float mTranslateX = 0;
-    private float mTranslateY = 0;
     private VelocityTracker mVelocityTracker = null;
     private float lastTouchX = 0;
     private float lastTouchY = 0;
@@ -51,8 +47,6 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
 
     public Gw2Map(Context context) {
         super(context);
-        this.mTileProvider = new Gw2TileProvider(this);
-        this.tiles = new ArrayList<Gw2Tile>();
         lastTouchY = 0;
         lastTouchX = 0;
     }
@@ -304,24 +298,21 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
 
             //We can start downloading if there was no previous thread or it has finished downloading.
             if (mTileProvider == null || mTileProvider.getStatus() == AsyncTask.Status.FINISHED) {
-                mTileProvider = new Gw2TileProvider(this);
+                mTileProvider = new Gw2TileProvider(this, getContext());
                 mTileProvider.execute((Gw2Tile[]) downloadList.toArray(new Gw2Tile[downloadList.size()]));
             } else {
-                boolean interrupted = false;
                 try {
                     mTileProvider.get();
                 } catch (InterruptedException e) {
                     //If it is interrupted we can start downloading.
-                    interrupted = true;
-                    mTileProvider = new Gw2TileProvider(this);
-                    mTileProvider.execute((Gw2Tile[]) downloadList.toArray(new Gw2Tile[downloadList.size()]));
+                    return;
                 } catch (ExecutionException e) {
                     e.printStackTrace();
                 }
-                if (!interrupted) {
-                    mTileProvider = new Gw2TileProvider(this);
-                    mTileProvider.execute((Gw2Tile[]) downloadList.toArray(new Gw2Tile[downloadList.size()]));
-                }
+
+                mTileProvider = new Gw2TileProvider(this, getContext());
+                mTileProvider.execute((Gw2Tile[]) downloadList.toArray(new Gw2Tile[downloadList.size()]));
+
             }
         }
 

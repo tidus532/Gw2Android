@@ -16,6 +16,7 @@
 
 package com.example.Gw2Android;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
@@ -30,23 +31,25 @@ import java.net.URL;
  */
 public class Gw2TileProvider extends AsyncTask<Gw2Tile[], Gw2Tile, Void> {
     private Gw2ITileReceiver mReceiver;
+    private Context mContext;
 
-    public Gw2TileProvider(Gw2ITileReceiver receiver){
+    public Gw2TileProvider(Gw2ITileReceiver receiver, Context context) {
         super();
         mReceiver = receiver;
+        mContext = context;
     }
 
-    protected String constructURL(int continent_id, int floor, int z, int x, int y){
+    protected String constructURL(int continent_id, int floor, int z, int x, int y) {
         return "https://tiles.guildwars2.com/" + continent_id + "/" + floor + "/" + z + "/" + x + "/" + y + ".jpg";
     }
 
-    protected Gw2Tile downloadTile(Gw2Tile tile){
+    protected Gw2Tile downloadTile(Gw2Tile tile) {
         try {
-            if(tile.getBitmap() == null && tile.worldCoord != null){
-                String url = constructURL(tile.continent_id, tile.floor, tile.zoom,tile.worldCoord.x,tile.worldCoord.y);
+            if (tile.getBitmap() == null && tile.worldCoord != null) {
+                String url = constructURL(tile.continent_id, tile.floor, tile.zoom, tile.worldCoord.x, tile.worldCoord.y);
                 InputStream is = new URL(url).openStream();
                 Bitmap image = BitmapFactory.decodeStream(is);
-                if(isCancelled()) return null;
+                if (isCancelled()) return null;
                 tile.setBitmap(image);
             }
         } catch (IOException e) {
@@ -57,18 +60,29 @@ public class Gw2TileProvider extends AsyncTask<Gw2Tile[], Gw2Tile, Void> {
 
     @Override
     protected Void doInBackground(Gw2Tile[]... tiles) {
-        Log.d("Gw2", "url length "+tiles[0].length);
-        for(Integer i = 0; i < tiles[0].length; i++){
-            if(isCancelled()) break;
-            Gw2Tile tile = downloadTile(tiles[0][i]);
-            if(isCancelled()) break;
-            publishProgress(tile);
+        Log.d("Gw2", "url length " + tiles[0].length);
+        for (Integer i = 0; i < tiles[0].length; i++) {
+            //Make sure the task hasn't been cancelled.
+            if (isCancelled()) break;
+
+            Gw2Tile tile = tiles[0][i];
+
+            //Load from cache if possible else download it.
+            if (Gw2MapCache.getBitmap(mContext, tile)) {
+                publishProgress(tile);
+            } else {
+                //Make sure task is not cancelled before we start downloading.
+                if (isCancelled()) break;
+                tile = downloadTile(tile);
+                Gw2MapCache.storeBitmap(mContext, tile);
+                publishProgress(tile);
+            }
         }
         return null;
     }
 
     @Override
-    protected void onProgressUpdate(Gw2Tile... tiles){
+    protected void onProgressUpdate(Gw2Tile... tiles) {
         mReceiver.receiveTile(tiles[0]);
     }
 }
