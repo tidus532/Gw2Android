@@ -16,6 +16,7 @@
 
 package com.example.Gw2Android;
 
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.util.Log;
@@ -44,7 +45,9 @@ public class Gw2TileProvider extends AsyncTask<Gw2Tile[], Gw2Tile, Void> {
             if(tile.getBitmap() == null && tile.worldCoord != null){
                 String url = constructURL(tile.continent_id, tile.floor, tile.zoom,tile.worldCoord.x,tile.worldCoord.y);
                 InputStream is = new URL(url).openStream();
-                tile.setBitmap(BitmapFactory.decodeStream(is));
+                Bitmap image = BitmapFactory.decodeStream(is);
+                if(isCancelled()) return null;
+                tile.setBitmap(image);
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -56,7 +59,10 @@ public class Gw2TileProvider extends AsyncTask<Gw2Tile[], Gw2Tile, Void> {
     protected Void doInBackground(Gw2Tile[]... tiles) {
         Log.d("Gw2", "url length "+tiles[0].length);
         for(Integer i = 0; i < tiles[0].length; i++){
-            publishProgress(downloadTile(tiles[0][i]));
+            if(isCancelled()) break;
+            Gw2Tile tile = downloadTile(tiles[0][i]);
+            if(isCancelled()) break;
+            publishProgress(tile);
         }
         return null;
     }

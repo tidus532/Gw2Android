@@ -20,12 +20,14 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.os.AsyncTask;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
 
 import java.util.ArrayList;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Created by tidus on 29/06/13.
@@ -150,34 +152,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
 
         if (action == MotionEvent.ACTION_UP && mLastAction == MotionEvent.ACTION_DOWN) {
 
-           /* Gw2Point p = null;
-            for (int i = 0; i < tiles.size(); i++) {
-                if (tiles.get(i).screenRect.contains(event.getX(), event.getY())) {
-                    p = tiles.get(i).worldCoord;
-                }
-            }
-            Gw2Point[][] tileCoord = getNearestTilesAtNextZoomLevel(p.x, p.y);
-            this.tiles.clear();
-            Gw2Tile[] download = new Gw2Tile[4];
-
-            int k = 0;
-            for (int i = 0; i < tileCoord.length; i++) {
-                for (int j = 0; j < tileCoord[i].length; j++) {
-                    download[k] = new Gw2Tile(1, 1, mCurrentZoom + 1, new Gw2Point(tileCoord[i][j].x, tileCoord[i][j].y), new Gw2Point(j, i), null);
-                    k++;
-                }
-            }
-
-            mScale = 1;
-            mCurrentZoom++;
-            mTranslateX = 0;
-            mTranslateY = 0;
-            tiles.addAll(Arrays.asList(download));
-            this.mTileProvider = new Gw2TileProvider(this);
-
-            mTileProvider.execute(download);
-
-            mLastAction = MotionEvent.ACTION_UP;*/
+            mMap.zoom(event.getX(), event.getY());
         }
 
         if (action == MotionEvent.ACTION_DOWN) {
@@ -217,6 +192,8 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
         private Gw2TileProvider mTileProvider;
         private int mNumRows;
         private int mNumColumns;
+        private int mNumRowsOrig;
+        private int mNumColumnsOrig;
         private int mCache;
         private float mTranslateX = 0;
         private float mTranslateY = 0;
@@ -236,6 +213,8 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
 
             mNumRows = numRows;
             mNumColumns = numColumns;
+            mNumRowsOrig = numRows;
+            mNumColumnsOrig = numColumns;
             mCache = cache;
             mPaint = new Paint();
         }
@@ -278,7 +257,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
         /**
          * Remove tiles that are currently not viewable by the user.
          */
-        public void pruneTiles() {
+        private void pruneTiles() {
 
         }
 
@@ -306,7 +285,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
          * Downloads tiles.
          */
         public void download() {
-            mTileProvider = new Gw2TileProvider(this);
+
             ArrayList<Gw2Tile> downloadList = new ArrayList<Gw2Tile>();
 
             for (int i = 0; i < mTiles.size(); i++) {
@@ -322,7 +301,28 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
             for (int i = 0; i < mTiles.size(); i++) {
                 downloadList.addAll(mTiles.get(i));
             }
-            mTileProvider.execute((Gw2Tile[]) downloadList.toArray(new Gw2Tile[downloadList.size()]));
+
+            //We can start downloading if there was no previous thread or it has finished downloading.
+            if (mTileProvider == null || mTileProvider.getStatus() == AsyncTask.Status.FINISHED) {
+                mTileProvider = new Gw2TileProvider(this);
+                mTileProvider.execute((Gw2Tile[]) downloadList.toArray(new Gw2Tile[downloadList.size()]));
+            } else {
+                boolean interrupted = false;
+                try {
+                    mTileProvider.get();
+                } catch (InterruptedException e) {
+                    //If it is interrupted we can start downloading.
+                    interrupted = true;
+                    mTileProvider = new Gw2TileProvider(this);
+                    mTileProvider.execute((Gw2Tile[]) downloadList.toArray(new Gw2Tile[downloadList.size()]));
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                }
+                if (!interrupted) {
+                    mTileProvider = new Gw2TileProvider(this);
+                    mTileProvider.execute((Gw2Tile[]) downloadList.toArray(new Gw2Tile[downloadList.size()]));
+                }
+            }
         }
 
         @Override
@@ -402,7 +402,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
                     //Insert new row at the end
                     ArrayList<Gw2Tile> row = new ArrayList<Gw2Tile>();
                     mTiles.add(row);
-                    int worldX = getTile(0, mNumRows-1).worldCoord.x;
+                    int worldX = getTile(0, mNumRows - 1).worldCoord.x;
 
                     for (int i = 0; i < mNumColumns; i++) {
                         Gw2Tile tile = new Gw2Tile();
@@ -419,14 +419,14 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
             }
 
 
-           // Gw2Tile bottomRightTile = getTile(mNumColumns - 1, mNumRows - 1);
+            // Gw2Tile bottomRightTile = getTile(mNumColumns - 1, mNumRows - 1);
             if (bottomRightTile.screenRect.right <= mCanvasWidth) {
                 if (!(bottomRightTile.worldCoord.x + 1 <= Math.pow(2, mCurrentZoom))) {
                     mTranslateX -= x;
                     this.updatePositions();
                 } else {
                     Log.d("Gw2", "Need to download new right column");
-                    int worldY = getTile(mNumColumns-1, 0).worldCoord.y;
+                    int worldY = getTile(mNumColumns - 1, 0).worldCoord.y;
                     //Insert new column the end
                     for (int i = 0; i < mNumRows; i++) {
                         Gw2Tile tile = new Gw2Tile();
@@ -439,7 +439,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
                 }
             }
 
-            if(download){
+            if (download) {
                 this.download();
             }
         }
@@ -450,6 +450,110 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
         public void resetTranslation() {
             mTranslateX = 0;
             mTranslateY = 0;
+        }
+
+        public void zoom(float screenX, float screenY) {
+            if (mCurrentZoom + 1 <= 7) {
+                //Cancel running download tasks.
+                mTileProvider.cancel(true);
+
+                //Detemine wich tile was clicked
+                Gw2Point clickedTileScreenCoord = null;
+                Gw2Point clickedTileWorldCoord = null;
+                for (int i = 0; i < mTiles.size(); i++) {
+                    ArrayList<Gw2Tile> row = mTiles.get(i);
+                    for (int j = 0; j < row.size(); j++) {
+                        if (row.get(j).screenRect.contains(screenX, screenY)) {
+                            clickedTileScreenCoord = new Gw2Point(j, i);
+                            clickedTileWorldCoord = row.get(j).worldCoord;
+                        }
+                    }
+                }
+
+                //Trim number of tiles on screen.
+                mTiles.retainAll(mTiles.subList(0, mNumRowsOrig));
+                mTiles.trimToSize();
+                for (ArrayList<Gw2Tile> row : mTiles) {
+                    row.retainAll(row.subList(0, mNumColumnsOrig));
+                    row.trimToSize();
+                }
+
+                mNumColumns = mNumColumnsOrig;
+                mNumRows = mNumRowsOrig;
+
+                //Get the center tile on screen.
+                int screenCenterTileX = (int) Math.floor((mNumColumns - 1) / 2);
+                int screenCenterTileY = (int) Math.floor((mNumRows - 1) / 2);
+
+                Gw2Tile screenCenterTile = getTile(screenCenterTileX, screenCenterTileY);
+
+                if (clickedTileScreenCoord != null) {
+                    //Each tile is split up in 4 tiles at the next zoom level, determine which tile needs to be centered.
+                    float baseX = clickedTileScreenCoord.x * 256 * mTranslateX;
+                    float baseY = clickedTileScreenCoord.y * 256 * mTranslateY;
+
+                    int x1, x2, y1, y2;
+
+                    if (clickedTileWorldCoord.x == 0) {
+                        x1 = 0;
+                        x2 = 1;
+                    } else {
+                        x1 = clickedTileWorldCoord.x * 2;
+                        x2 = x1 + 1;
+                    }
+
+                    if (clickedTileWorldCoord.y == 0) {
+                        y1 = 0;
+                        y2 = 1;
+                    } else {
+                        y1 = clickedTileWorldCoord.y * 2;
+                        y2 = y1 + 1;
+                    }
+
+                    if (screenX <= baseX + 128) {
+                        if (screenY <= baseY + 128) {
+                            //Tile 1.
+                            screenCenterTile.worldCoord.x = x1;
+                            screenCenterTile.worldCoord.y = y1;
+                        } else {
+                            //Tile 3.
+                            screenCenterTile.worldCoord.x = x1;
+                            screenCenterTile.worldCoord.y = y2;
+                        }
+                    } else {
+                        if (screenY <= baseY + 128) {
+                            //Tile2
+                            screenCenterTile.worldCoord.x = x2;
+                            screenCenterTile.worldCoord.y = y1;
+                        } else {
+                            //Tile3
+                            screenCenterTile.worldCoord.x = x2;
+                            screenCenterTile.worldCoord.y = y2;
+                        }
+                    }
+
+                    //Set all bitmaps to null for redownloading.
+                    for (ArrayList<Gw2Tile> rows : mTiles) {
+                        for (Gw2Tile tile : rows) {
+                            tile.setBitmap(null);
+                            tile.zoom++;
+                        }
+                    }
+
+                    mCurrentZoom++;
+                    resetTranslation();
+
+                    fillScreenAroundArea(new Rect(screenCenterTileX, screenCenterTileY, screenCenterTileX, screenCenterTileY));
+                    mMap.download();
+
+                } else {
+                    Log.e("Gw2", "Gw2MapStructure::zoom unable to determine the clicked tile.");
+                }
+            }
+        }
+
+        public void center() {
+
         }
     }
 }
