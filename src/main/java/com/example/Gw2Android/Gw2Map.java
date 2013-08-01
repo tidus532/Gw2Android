@@ -27,6 +27,7 @@ import android.view.VelocityTracker;
 import android.view.View;
 
 import java.util.ArrayList;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 
 /**
@@ -181,7 +182,7 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
         return true;
     }
 
-    private class Gw2MapStructure implements Gw2ITileReceiver {
+    public class Gw2MapStructure implements Gw2ITileReceiver {
         private ArrayList<ArrayList<Gw2Tile>> mTiles;
         private Gw2TileProvider mTileProvider;
         private int mNumRows;
@@ -219,6 +220,14 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
 
         public ArrayList<Gw2Tile> getRow(int rowNumber) {
             return mTiles.get(rowNumber);
+        }
+
+        public int getNumRows() {
+            return mNumRows;
+        }
+
+        public int getNumColumns() {
+            return mNumColumns;
         }
 
         /**
@@ -305,6 +314,8 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
                     mTileProvider.get();
                 } catch (InterruptedException e) {
                     //If it is interrupted we can start downloading.
+                    return;
+                } catch (CancellationException e) {
                     return;
                 } catch (ExecutionException e) {
                     e.printStackTrace();
@@ -456,23 +467,34 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
                     for (int j = 0; j < row.size(); j++) {
                         if (row.get(j).screenRect.contains(screenX, screenY)) {
                             clickedTileScreenCoord = new Gw2Point(j, i);
-                            clickedTileWorldCoord = row.get(j).worldCoord;
+                            clickedTileWorldCoord = new Gw2Point(row.get(j).worldCoord.x, row.get(j).worldCoord.y);
                         }
                     }
                 }
 
                 //Trim number of tiles on screen.
-                mTiles.retainAll(mTiles.subList(0, mNumRowsOrig));
+                mTiles.subList(mNumRowsOrig, mTiles.size()).clear();
                 mTiles.trimToSize();
-                for (ArrayList<Gw2Tile> row : mTiles) {
-                    row.retainAll(row.subList(0, mNumColumnsOrig));
+                for (int i = 0; i < mTiles.size(); i++) {
+                    ArrayList<Gw2Tile> row = mTiles.get(i);
+                    row.subList(mNumColumnsOrig, row.size()).clear();
                     row.trimToSize();
+                }
+
+                //Set all bitmaps to null for redownloading.
+                for (ArrayList<Gw2Tile> rows : mTiles) {
+                    for (Gw2Tile tile : rows) {
+                        tile.setBitmap(null);
+                        tile.zoom++;
+                        tile.worldCoord.x = 0;
+                        tile.worldCoord.y = 0;
+                    }
                 }
 
                 mNumColumns = mNumColumnsOrig;
                 mNumRows = mNumRowsOrig;
 
-                //Get the center tile on screen.
+                //Get the tile closest to the actual center of the screen.
                 int screenCenterTileX = (int) Math.floor((mNumColumns - 1) / 2);
                 int screenCenterTileY = (int) Math.floor((mNumRows - 1) / 2);
 
@@ -480,8 +502,8 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
 
                 if (clickedTileScreenCoord != null) {
                     //Each tile is split up in 4 tiles at the next zoom level, determine which tile needs to be centered.
-                    float baseX = clickedTileScreenCoord.x * 256 * mTranslateX;
-                    float baseY = clickedTileScreenCoord.y * 256 * mTranslateY;
+                    float baseX = clickedTileScreenCoord.x * 256 + mTranslateX;
+                    float baseY = clickedTileScreenCoord.y * 256 + mTranslateY;
 
                     int x1, x2, y1, y2;
 
@@ -523,19 +545,24 @@ public class Gw2Map extends View implements Gw2ITileReceiver {
                         }
                     }
 
-                    //Set all bitmaps to null for redownloading.
-                    for (ArrayList<Gw2Tile> rows : mTiles) {
-                        for (Gw2Tile tile : rows) {
-                            tile.setBitmap(null);
-                            tile.zoom++;
-                        }
-                    }
+
 
                     mCurrentZoom++;
                     resetTranslation();
 
                     fillScreenAroundArea(new Rect(screenCenterTileX, screenCenterTileY, screenCenterTileX, screenCenterTileY));
                     mMap.download();
+
+                    //Get the center tile in the actual center of the screen.
+                    float realCenterX = mCanvasWidth / 2;
+                    float realCenterY = mCanvasHeight / 2;
+                    float pixelScreenCenterX = (screenCenterTileX * 256) + 128;
+                    float pixelScreenCenterY = (screenCenterTileY * 256) + 128;
+
+                    float translateX = realCenterX - pixelScreenCenterX;
+                    float translateY = realCenterY - pixelScreenCenterY;
+                    translate(translateX, translateY);
+
 
                 } else {
                     Log.e("Gw2", "Gw2MapStructure::zoom unable to determine the clicked tile.");

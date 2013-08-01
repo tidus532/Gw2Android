@@ -19,32 +19,36 @@ import android.graphics.Bitmap;
 import android.graphics.RectF;
 import android.util.Log;
 
+import java.util.concurrent.locks.ReentrantLock;
+
 /**
  * Created by tidus on 3/07/13.
  */
 public class Gw2Tile {
-    private Bitmap mBitmap = null;
     public int continent_id;
     public int floor;
     public int zoom;
     public Gw2Point worldCoord = null;
     public RectF screenRect = null;
+    private Bitmap mBitmap = null;
+    private final ReentrantLock bitmapLock = new ReentrantLock();
 
-    public Gw2Tile(){
+    public Gw2Tile() {
         this.screenRect = new RectF();
     }
 
-    public Bitmap getBitmap(){
+    public Bitmap getBitmap() {
         return mBitmap;
     }
 
-    public void setBitmap(Bitmap tile){
+    public void setBitmap(Bitmap tile) {
         mBitmap = tile;
     }
-    public void set(int continent_id, int floor, int zoom, Gw2Point worldCoord){
+
+    public void set(int continent_id, int floor, int zoom, Gw2Point worldCoord) {
         this.continent_id = continent_id;
         this.floor = floor;
-        if(worldCoord == null){
+        if (worldCoord == null) {
             Log.d("Gw2", "Gw2Tile::set worldCoord is null");
         }
         this.worldCoord = worldCoord;
