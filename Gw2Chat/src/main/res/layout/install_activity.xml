@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:text="Welcome to the Guildwars 2 chest events application!"
+            android:id="@+id/welcome"
+            android:layout_marginTop="30dp"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentLeft="true"
+            android:layout_marginLeft="14dp"
+            android:layout_marginRight="35dp"
+            android:layout_alignParentEnd="false"
+            android:gravity="fill_horizontal|fill|clip_horizontal"/>
+
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:text="Before we start we need to download a few things."
+            android:id="@+id/welcome2"
+            android:layout_below="@+id/welcome"
+            android:layout_alignLeft="@+id/welcome"
+            android:layout_marginTop="34dp"
+            android:layout_marginRight="35dp"
+            android:gravity="fill_horizontal|fill|clip_horizontal"/>
+
+    <ProgressBar
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/progressBar"
+            android:layout_marginBottom="76dp"
+            android:indeterminate="false"
+            android:minWidth="200dp"
+            android:layout_alignParentBottom="true"
+            android:layout_centerHorizontal="true"/>
+
+    <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:id="@+id/progressText"
+            android:layout_marginTop="30sp"
+            android:layout_alignTop="@+id/progressBar"
+            android:layout_alignLeft="@+id/progressBar"
+            android:singleLine="false"/>
+
+</RelativeLayout>
